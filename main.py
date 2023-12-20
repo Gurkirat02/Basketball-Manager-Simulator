@@ -54,6 +54,17 @@ class Team:
         feet = int(average_height_inches // 12)
         inches = int(average_height_inches % 12)
         return f'{feet}"{inches}\''
+    
+    def allocate_playing_time(self):
+        total_minutes = 240
+        # Distribute minutes based on player rating
+        # Higher-rated players get more playing time
+        sorted_players = sorted(self.players, key=lambda p: p.rating, reverse=True)
+        for player in sorted_players:
+            player.playing_time = max(20, player.rating / 100 * total_minutes)
+            total_minutes -= player.playing_time
+            if total_minutes <= 0:
+                break
 
     def identify_captain(self):
         return max(self.starters, key=lambda player: player.rating)
@@ -78,6 +89,8 @@ class Player:
         self.rating = rating
         self.age = age
         self.height = self.generate_height(position)
+        self.playing_time = 0  # Initialize playing time
+
 
     def generate_height(self, position):
         if position == 'PG':
@@ -106,11 +119,28 @@ def random_height(min_height, max_height, lower_bound=None, upper_bound=None):
             return random.randint(lower_bound, upper_bound)
     return random.randint(min_height, max_height)
 
+def simulate_game_minute(team):
+    # Choose players on the court based on remaining playing time
+    on_court = [p for p in team.players if p.playing_time > 0]
+    on_court = sorted(on_court, key=lambda p: p.playing_time, reverse=True)[:5]  # Top 5 players with remaining time
+    score = 0
+    for player in on_court:
+        player.playing_time -= 1  # Deduct a minute from playing time
+        if random.random() < player.rating / 100:  # Chance to score based on rating
+            score += 2  # Simple scoring, 2 points per successful attempt
+    return score
+
+
 
 def simulate_game(team1, team2):
-    # Calculate team scores based on player ratings and a chance factor
-    team1_score = sum([p.rating for p in team1.players]) * random.uniform(0.9, 1.1)
-    team2_score = sum([p.rating for p in team2.players]) * random.uniform(0.9, 1.1)
+    team1.allocate_playing_time()
+    team2.allocate_playing_time()
+    team1_score = 0
+    team2_score = 0
+
+    for _ in range(48):  # 48 minutes of game
+        team1_score += simulate_game_minute(team1)
+        team2_score += simulate_game_minute(team2)
 
     # Determine winner
     if team1_score > team2_score:
@@ -120,18 +150,27 @@ def simulate_game(team1, team2):
         team2.wins += 1
         team1.losses += 1
 
+    return team1_score, team2_score
+
 def simulate_season(teams):
     games_played = {team: 0 for team in teams}
+    game_results = []
+
     for team1 in teams:
         for team2 in teams:
             if team1 != team2 and games_played[team1] < 18 and games_played[team2] < 18:
-                simulate_game(team1, team2)
-                simulate_game(team1, team2)  # Play twice
+                score1, score2 = simulate_game(team1, team2)
+                game_results.append((team1, team2, score1, score2))
+                print(f"Game between {team1.name} and {team2.name}: {score1}-{score2}")
+                
+                score1, score2 = simulate_game(team1, team2)  # Play twice
+                game_results.append((team1, team2, score1, score2))
+                print(f"Game between {team1.name} and {team2.name}: {score1}-{score2}")
+
                 games_played[team1] += 2
                 games_played[team2] += 2
 
-    standings = sorted(teams, key=lambda x: (x.wins, -x.losses), reverse=True)
-    return standings
+    return game_results
 
 
 def draft_rating(round):
@@ -173,15 +212,21 @@ def display_roster(team):
     print(f"Average Height: {team.average_height_to_str()}\n")
     print(f"Average Height: {team.average_height_to_str()}\n")
 
-
-
 def main():
     teams = [Team(name) for name in team_names]
     simulate_draft(teams)
-    simulate_season(teams)
+
+    game_results = simulate_season(teams)  # Capture the game results
+
+    # Now you can process or display the game results
+    for game in game_results:
+        team1, team2, score1, score2 = game
+        print(f"Game Result: {team1.name} {score1} - {team2.name} {score2}")
+
 
     for team in teams:
         display_roster(team)
+
 
     # Display season standings
     standings = sorted(teams, key=lambda x: (x.wins, -x.losses), reverse=True)
@@ -191,5 +236,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
