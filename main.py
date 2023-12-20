@@ -23,7 +23,7 @@ class Team:
         name = f"Player {num+1} of {self.name}"
         position = random.choice(['PG', 'SG', 'SF', 'PF', 'C'])
         rating = self.generate_rating(num)
-        age = random.randint(18, 35)  # Adjust the age range as needed
+        age = random.randint(18, 39)  # Adjust the age range as needed
         return Player(name, position, rating, age)
 
     def generate_rating(self, num):
